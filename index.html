@@ -309,7 +309,7 @@ const LocalStore = (() => {
     window.addEventListener('storage', cb);
   }
 
-  return { seed, listPolls, getPoll, createPoll, deletePoll, submitVotes, myVotes, myComments, pollResults, onChange, uid };
+  return { seed, listPolls, getPoll, createPoll, deletePoll, submitVotes, myVotes, myComments, pollResults, onChange, hasAdminKey: () => true, uid };
 })();
 
 /* =========================================================
@@ -384,6 +384,11 @@ const PUBLIC_CONFIG = {
 };
 const CloudStore = (() => {
   let db = null;
+  const K_ADMIN = 'hongla_admin_keys';
+  const readKeys = () => { try { return JSON.parse(localStorage.getItem(K_ADMIN)) || {}; } catch { return {}; } };
+  const saveAdminKey = (id, key) => { const m = readKeys(); m[id] = key; localStorage.setItem(K_ADMIN, JSON.stringify(m)); };
+  const getAdminKey = id => readKeys()[id] || null;
+  const removeAdminKey = id => { const m = readKeys(); delete m[id]; localStorage.setItem(K_ADMIN, JSON.stringify(m)); };
   function init() {
     if (!db && window.WorkBuddyCloud) {
       db = WorkBuddyCloud.createWorkBuddyCloud({
@@ -422,16 +427,27 @@ const CloudStore = (() => {
     },
     async createPoll(title, optionNames) {
       const d = init();
-      const poll = { id: LocalStore.uid(), title, options: optionNames.map(n => ({ id: LocalStore.uid(), name: n })) };
-      await unw(d.from('polls').insert(poll));
+      // 服务端生成投票 id 与管理密钥（库内只存 MD5，明文仅返回一次，存本地）
+      const rows = await unw(d.rpc('create_poll', {
+        p_title: title,
+        p_options: optionNames.map(n => ({ id: LocalStore.uid(), name: n })),
+      }));
+      const r = rows[0];
+      const poll = { id: r.id, title, options: optionNames.map(n => ({ id: LocalStore.uid(), name: n })) };
+      saveAdminKey(r.id, r.admin_key);
       return poll;
     },
     async deletePoll(id) {
       const d = init();
-      await unw(d.from('votes').delete().eq('poll_id', id));
-      await unw(d.from('comments').delete().eq('poll_id', id));
-      await unw(d.from('polls').delete().eq('id', id));
+      const key = getAdminKey(id);
+      const ok = await unw(d.rpc('delete_poll', { p_poll_id: id, p_admin_key: key }));
+      if (!ok) {
+        removeAdminKey(id);
+        throw new Error('只有创建者才能删除自己的投票');
+      }
+      removeAdminKey(id);
     },
+    hasAdminKey(id) { return !!getAdminKey(id); },
     async submitVotes(pollId, ratings, comments, voterKey) {
       const d = init();
       await unw(d.from('votes').delete().match({ poll_id: pollId, voter_key: voterKey }));
@@ -570,7 +586,7 @@ async function renderHome() {
       <button class="btn primary wide" id="createBtn">创建投票</button>
     </div>
     <div class="card">
-      <h2>我的投票项目 <span class="tiny">（共 ${polls.length} 个）</span></h2>
+      <h2>全部投票项目 <span class="tiny">（共 ${polls.length} 个 · 带删除按钮的是本机创建的）</span></h2>
       <div id="pollList"></div>
     </div>`;
   draftCounts = {};
@@ -602,18 +618,21 @@ function addOptRow(val = '') {
 function renderPollList(polls) {
   const box = document.getElementById('pollList');
   if (!polls.length) { box.innerHTML = '<div class="empty">还没有投票项目，先创建一个吧</div>'; return; }
-  box.innerHTML = polls.map(p => `
+  box.innerHTML = polls.map(p => {
+    const owned = Store.hasAdminKey(p.id);
+    return `
     <div class="poll-item">
       <div>
-        <div class="t" data-id="${p.id}">${esc(p.title)}</div>
+        <div class="t" data-id="${p.id}">${esc(p.title)}${owned ? ' <span class="tag hong">我创建的</span>' : ''}</div>
         <div class="meta">${p.options.length} 个选项 · 创建于 ${fmtDate(p.createdAt)}</div>
       </div>
       <div style="display:flex;gap:6px;flex:none">
         <a class="btn ghost sm" href="#/vote/${p.id}">去投票</a>
         <a class="btn sm" href="#/result/${p.id}">看结果</a>
-        <button class="del btn ghost sm" data-id="${p.id}" title="删除">✕</button>
+        ${owned ? `<button class="del btn ghost sm" data-id="${p.id}" title="删除">✕</button>` : ''}
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 async function onCreate() {
   const title = document.getElementById('newTitle').value.trim();
