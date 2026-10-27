@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>夯拉投票 · 环境诊断</title>
+<style>
+  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", monospace; background: #faf8f5; color: #211d19; padding: 16px; font-size: 14px; }
+  h3 { margin: 4px 0 12px; }
+  .row { padding: 8px 6px; border-bottom: 1px solid #eae4dc; word-break: break-all; }
+  .ok { color: #2a7a4a; } .bad { color: #c22f28; } .pend { color: #999; }
+  .tip { background: #fff8e6; border: 1px solid #f0e2bb; color: #8a6d2f; padding: 8px 10px; border-radius: 8px; font-size: 13px; margin-bottom: 10px; }
+</style>
+</head>
+<body>
+<h3>身份识别诊断 v1</h3>
+<div class="tip">本页只做只读测试，不会提交任何数据。等所有行出结果后，把页面截图发给 WorkBuddy。</div>
+<div id="log"></div>
+<script>
+function log(msg, cls) {
+  var d = document.createElement('div');
+  d.className = 'row ' + (cls || 'pend');
+  d.textContent = msg;
+  document.getElementById('log').appendChild(d);
+}
+log('UA: ' + navigator.userAgent);
+try { localStorage.setItem('__t','1'); localStorage.removeItem('__t'); log('localStorage: 可用', 'ok'); }
+catch(e) { log('localStorage: 不可用 → ' + e.message, 'bad'); }
+try { sessionStorage.setItem('__t','1'); sessionStorage.removeItem('__t'); log('sessionStorage: 可用', 'ok'); }
+catch(e) { log('sessionStorage: 不可用 → ' + e.message, 'bad'); }
+log('Promise.any: ' + typeof Promise.any, typeof Promise.any === 'function' ? 'ok' : 'bad');
+log('AbortController: ' + typeof AbortController, typeof AbortController === 'function' ? 'ok' : 'bad');
+log('fetch: ' + typeof fetch, typeof fetch === 'function' ? 'ok' : 'bad');
+try {
+  var c = document.createElement('canvas'); var x = c.getContext('2d');
+  x.textBaseline = 'top'; x.font = '16px Arial'; x.fillText('fp-test', 2, 2);
+  log('canvas 指纹: 可用 (' + c.toDataURL().length + ' chars)', 'ok');
+} catch(e) { log('canvas 指纹: 失败 → ' + e.message, 'bad'); }
+
+var apis = [
+  'https://myip.ipip.net/json',
+  'https://ip.useragentinfo.com/json',
+  'https://api.ipify.org?format=json',
+  'https://api.ip.sb/jsonip'
+];
+apis.forEach(function(u) {
+  var t0 = Date.now(), done = false;
+  log(u + ' → 测试中…', 'pend');
+  var row = document.getElementById('log').lastChild;
+  var opts = {};
+  if (typeof AbortController === 'function') {
+    var ctrl = new AbortController();
+    opts.signal = ctrl.signal;
+    setTimeout(function(){ if (!done) ctrl.abort(); }, 3000);
+  }
+  fetch(u, opts).then(function(r){ return r.text(); }).then(function(t){
+    done = true;
+    var j = null; try { j = JSON.parse(t); } catch(e) {}
+    var ip = j && (j.ip || (j.data && j.data.ip));
+    row.textContent = u + ' → ' + (ip ? '成功 ip=' + ip : 'HTTP 成功但解析不到 ip，返回: ' + String(t).slice(0, 60)) + ' (' + (Date.now() - t0) + 'ms)';
+    row.className = 'row ' + (ip ? 'ok' : 'bad');
+  }).catch(function(e){
+    done = true;
+    row.textContent = u + ' → 失败: ' + (e.name === 'AbortError' ? '超时(3s)' : (e.message || e.name)) + ' (' + (Date.now() - t0) + 'ms)';
+    row.className = 'row bad';
+  });
+});
+window.addEventListener('error', function(e) { log('脚本错误: ' + (e.message || 'unknown'), 'bad'); });
+</script>
+</body>
+</html>
