@@ -317,9 +317,23 @@ const LocalStore = (() => {
  * 上云后可整体替换为服务端取 X-Forwarded-For。
  * ========================================================= */
 const Identity = (() => {
+  const K_CACHE = 'hongla_identity_cache';
   let cached = null, pending = null;
 
-  async function fetchText(url, ms = 2500) {
+  function readCache() {
+    if (cached) return cached;
+    try {
+      const c = JSON.parse(sessionStorage.getItem(K_CACHE));
+      if (c && c.value) { cached = c; return c; }
+    } catch {}
+    return null;
+  }
+  function writeCache(c) {
+    cached = c;
+    try { sessionStorage.setItem(K_CACHE, JSON.stringify(c)); } catch {}
+  }
+
+  async function fetchText(url, ms = 1800) {
     const c = new AbortController();
     const t = setTimeout(() => c.abort(), ms);
     try {
@@ -344,29 +358,35 @@ const Identity = (() => {
     return 'fp_' + h.toString(36);
   }
 
-  /* 候选 IP 接口均返回含 .ip 字段的 JSON，按可达性依次尝试 */
+  /* 候选 IP 接口均返回含 .ip 字段的 JSON，并行竞速：任一成功即用，全部失败才走设备指纹 */
   const IP_APIS = [
     'https://myip.ipip.net/json',
+    'https://ip.useragentinfo.com/json',
     'https://api.ipify.org?format=json',
     'https://api.ip.sb/jsonip',
   ];
 
   function resolve() {
-    if (cached) return Promise.resolve(cached);
+    const hit = readCache();
+    if (hit) return Promise.resolve(hit);
     if (!pending) pending = (async () => {
-      for (const u of IP_APIS) {
-        const t = await fetchText(u);
-        if (!t) continue;
-        try {
-          const ip = JSON.parse(t).ip;
-          if (typeof ip === 'string' && /^[\d.:a-fA-F]+$/.test(ip)) {
-            cached = { type: 'ip', value: ip };
-            return cached;
-          }
-        } catch {}
+      try {
+        const ip = await Promise.any(IP_APIS.map(async u => {
+          const t = await fetchText(u, 1800);
+          if (!t) throw new Error('unreachable');
+          const j = JSON.parse(t);
+          const ip = j.ip || (j.data && j.data.ip);   // 兼容 ipip.net 的 {data:{ip}} 结构
+          if (typeof ip !== 'string' || !/^[\d.:a-fA-F]+$/.test(ip)) throw new Error('bad');
+          return ip;
+        }));
+        const c = { type: 'ip', value: ip };
+        writeCache(c);
+        return c;
+      } catch {
+        const c = { type: 'fp', value: fingerprint() };
+        writeCache(c);
+        return c;
       }
-      cached = { type: 'fp', value: fingerprint() };
-      return cached;
     })();
     return pending;
   }
@@ -798,6 +818,7 @@ async function updateResult(init = false) {
     if (current.view === 'result') updateResult();
   });
   route();
+  Identity.resolve().catch(() => {});   // 页面打开即预热身份识别，进投票页时已就绪
 })();
 setInterval(() => { if (current.view === 'result') updateResult(); }, 2000);
 </script>
