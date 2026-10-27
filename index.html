@@ -366,29 +366,56 @@ const Identity = (() => {
     'https://api.ip.sb/jsonip',
   ];
 
-  function resolve() {
-    const hit = readCache();
-    if (hit) return Promise.resolve(hit);
-    if (!pending) pending = (async () => {
+  /* 手写 Promise.any，兼容不支持 ES2021 的浏览器 */
+  function anyOf(promises) {
+    return new Promise((resolve, reject) => {
+      const total = promises.length;
+      let failed = 0;
+      if (!total) return reject(new Error('empty'));
+      promises.forEach(p => p.then(v => resolve(v)).catch(() => {
+        if (++failed === total) reject(new Error('all-failed'));
+      }));
+    });
+  }
+
+  function startResolve() {
+    return (async () => {
       try {
-        const ip = await Promise.any(IP_APIS.map(async u => {
+        const giveUp = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 2000));
+        const ip = await Promise.race([
+          anyOf(IP_APIS.map(async u => {
           const t = await fetchText(u, 1800);
           if (!t) throw new Error('unreachable');
           const j = JSON.parse(t);
           const ip = j.ip || (j.data && j.data.ip);   // 兼容 ipip.net 的 {data:{ip}} 结构
           if (typeof ip !== 'string' || !/^[\d.:a-fA-F]+$/.test(ip)) throw new Error('bad');
           return ip;
-        }));
+        })), giveUp]);
         const c = { type: 'ip', value: ip };
         writeCache(c);
         return c;
-      } catch {
-        const c = { type: 'fp', value: fingerprint() };
-        writeCache(c);
-        return c;
-      }
+      } catch {}
+      const c = { type: 'fp', value: fingerprint() };
+      writeCache(c);
+      return c;
     })();
-    return pending;
+  }
+
+  /*
+   * resolve(maxWait)：永不 reject、永不无限等待。
+   * 不传 maxWait：等识别完成（最快几百毫秒，最坏 ~2s）。
+   * 传 maxWait 毫秒数：到点还没结果就立即返回设备指纹兜底，绝不管控投票。
+   */
+  function resolve(maxWait) {
+    const hit = readCache();
+    if (hit) return Promise.resolve(hit);
+    if (!pending) pending = startResolve();
+    if (!maxWait) return pending;
+    return new Promise(res => {
+      let done = false;
+      pending.then(c => { if (!done) { done = true; res(c); } }).catch(() => {});
+      setTimeout(() => { if (!done) { done = true; res({ type: 'fp', value: fingerprint() }); } }, maxWait);
+    });
   }
 
   return { resolve };
@@ -704,10 +731,10 @@ async function renderVote() {
     if (!Object.keys(draftRatings).length) { toast('至少给一个选项评级'); return; }
     const btn = document.getElementById('submitVote');
     btn.disabled = true; btn.textContent = '正在校验身份…';
-    const key = await Identity.resolve();
     const comments = {};
     app.querySelectorAll('.cmt-input').forEach(i => { comments[i.dataset.cmt] = i.value; });
     try {
+      const key = await Identity.resolve(2000);   // 最多等 2 秒，到点用设备指纹兜底，绝不卡投票
       await Store.submitVotes(poll.id, draftRatings, comments, key.value);
       toast('已提交，锐评已上弹幕！');
       setTimeout(() => location.hash = '#/result/' + poll.id, 400);
@@ -716,8 +743,9 @@ async function renderVote() {
       btn.disabled = false; btn.textContent = '提交我的评级';
     }
   };
-  // 异步解析身份：更新提示 + 回填我上次的评级与锐评
+  // 异步解析身份：更新提示 + 回填我上次的评级与锐评（任何异常都不阻塞投票）
   Identity.resolve().then(async k => {
+    try {
     const badge = document.getElementById('idBadge');
     if (badge) badge.textContent = k.type === 'ip'
       ? `防重复投票：已识别 IP ${k.value}，同一 IP 每题限一份选票（重复提交视为修改）`
@@ -731,6 +759,10 @@ async function renderVote() {
       const ci = row.querySelector('.cmt-input');
       if (ci && myCmts[optId]) ci.value = myCmts[optId];
     });
+    } catch (e) { console.warn('身份回填失败：', e); }
+  }).catch(() => {
+    const badge = document.getElementById('idBadge');
+    if (badge) badge.textContent = '防重复投票：网络标识不可用，将使用设备标识';
   });
 }
 
