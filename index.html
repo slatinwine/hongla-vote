@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>夯拉投票 · 从夯到拉，一目了然</title>
+<script>
+  // GitHub Pages 镜像无法直连云端（网关按 Origin 白名单拦截），自动跳转到全区共享版；本地/其他域名不受影响
+  if (location.hostname === "slatinwine.github.io") {
+    location.replace("https://hongla-vote.app.workbuddy.host/?sharecode=5T3C5P4ZOX" + location.hash);
+  }
+</script>
 <style>
   :root {
     --bg: #faf8f5;
@@ -201,7 +207,8 @@
 </div>
 <div class="toast" id="toast"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/@tencent-ai/workbuddy-cloud-sdk@dev/lib/index.global.js"></script>
+<script src="workbuddy-cloud-sdk.js"></script>
+<script>if (!window.WorkBuddyCloud) document.write('<script src="https://cdn.jsdelivr.net/npm/@tencent-ai/workbuddy-cloud-sdk@dev/lib/index.global.js"><\/script>');</script>
 <script>
 /* =========================================================
  * 数据层（Store）
