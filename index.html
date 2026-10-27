@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>夯拉投票 · 从夯到拉，一目了然</title>
+<style>
+  :root {
+    --bg: #faf8f5;
+    --paper: #ffffff;
+    --ink: #211d19;
+    --ink-2: #6f675e;
+    --ink-3: #a39a8e;
+    --line: #eae4dc;
+    --accent: #d6453e;      /* 夯 · 朱红 */
+    --accent-soft: #fbeae8;
+    --cool: #5f7d6c;        /* 拉 · 灰绿 */
+    --cool-soft: #e9f0ec;
+    --radius: 14px;
+    --shadow: 0 1px 2px rgba(33,29,25,.04), 0 8px 24px rgba(33,29,25,.06);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+  .wrap { max-width: 680px; margin: 0 auto; padding: 32px 20px 80px; }
+
+  /* ---------- header ---------- */
+  header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 28px; }
+  .logo { font-size: 24px; font-weight: 800; letter-spacing: .5px; }
+  .logo .hong { color: var(--accent); }
+  .logo .la { color: var(--cool); }
+  .slogan { color: var(--ink-3); font-size: 13px; }
+  .backlink { color: var(--ink-2); font-size: 13px; text-decoration: none; border-bottom: 1px solid var(--line); }
+  .backlink:hover { color: var(--ink); }
+
+  /* ---------- cards ---------- */
+  .card {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 22px;
+    margin-bottom: 18px;
+  }
+  .card h2 { font-size: 17px; margin-bottom: 14px; }
+  .muted { color: var(--ink-2); font-size: 13px; }
+  .tiny { color: var(--ink-3); font-size: 12px; }
+
+  /* ---------- forms ---------- */
+  label { display: block; font-size: 13px; color: var(--ink-2); margin: 12px 0 6px; font-weight: 600; }
+  input[type=text] {
+    width: 100%; padding: 10px 12px;
+    border: 1px solid var(--line); border-radius: 10px;
+    font-size: 15px; font-family: inherit; background: var(--bg); color: var(--ink);
+    outline: none; transition: border-color .15s;
+  }
+  input[type=text]:focus { border-color: var(--accent); background: #fff; }
+  .opt-row { display: flex; gap: 8px; margin-bottom: 8px; }
+  .opt-row input { flex: 1; }
+  .btn {
+    display: inline-block; border: none; cursor: pointer; font-family: inherit;
+    padding: 10px 18px; border-radius: 10px; font-size: 14px; font-weight: 600;
+    background: var(--ink); color: #fff; transition: opacity .15s, transform .05s;
+  }
+  .btn:hover { opacity: .88; }
+  .btn:active { transform: scale(.98); }
+  .btn.primary { background: var(--accent); }
+  .btn.ghost { background: transparent; color: var(--ink-2); border: 1px solid var(--line); }
+  .btn.ghost:hover { color: var(--ink); border-color: var(--ink-3); }
+  .btn.sm { padding: 6px 12px; font-size: 13px; border-radius: 8px; }
+  .btn.wide { width: 100%; padding: 12px; font-size: 15px; margin-top: 8px; }
+  .opt-row .del {
+    flex: none; width: 38px; border: 1px solid var(--line); background: var(--bg);
+    border-radius: 10px; cursor: pointer; color: var(--ink-3); font-size: 16px;
+  }
+  .opt-row .del:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* ---------- poll list ---------- */
+  .poll-item {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 14px 4px; border-bottom: 1px solid var(--line);
+  }
+  .poll-item:last-child { border-bottom: none; }
+  .poll-item .t { font-weight: 600; cursor: pointer; }
+  .poll-item .t:hover { color: var(--accent); }
+  .poll-item .meta { color: var(--ink-3); font-size: 12px; }
+  .empty { text-align: center; color: var(--ink-3); padding: 32px 0; font-size: 14px; }
+
+  /* ---------- vote scale ---------- */
+  .vote-opt { padding: 16px 0; border-bottom: 1px dashed var(--line); }
+  .vote-opt:last-of-type { border-bottom: none; }
+  .vote-opt .name { font-weight: 700; font-size: 16px; margin-bottom: 10px; }
+  .scale { display: flex; gap: 6px; }
+  .scale button {
+    flex: 1; padding: 9px 0; border-radius: 9px; cursor: pointer; font-family: inherit;
+    font-size: 13px; font-weight: 600;
+    border: 1px solid var(--line); background: var(--bg); color: var(--ink-2);
+    transition: all .12s;
+  }
+  .scale button:hover { border-color: var(--ink-3); }
+  .scale button.on { color: #fff; border-color: transparent; }
+  .scale button[data-s="5"].on { background: var(--accent); }
+  .scale button[data-s="4"].on { background: #e06a54; }
+  .scale button[data-s="3"].on { background: #b09a86; }
+  .scale button[data-s="2"].on { background: #8b9c8e; }
+  .scale button[data-s="1"].on { background: var(--cool); }
+  .scale-hint { display: flex; justify-content: space-between; margin-top: 8px; font-size: 12px; color: var(--ink-3); }
+  .scale-hint .hong { color: var(--accent); font-weight: 700; }
+  .scale-hint .la { color: var(--cool); font-weight: 700; }
+
+  /* ---------- results ---------- */
+  .res-row { padding: 14px 0; border-bottom: 1px dashed var(--line); }
+  .res-row:last-child { border-bottom: none; }
+  .res-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
+  .res-head .nm { font-weight: 700; font-size: 15px; }
+  .res-head .rank { color: var(--ink-3); font-size: 12px; margin-right: 8px; font-weight: 600; }
+  .res-score { font-size: 14px; font-weight: 700; }
+  .res-score .num { font-size: 18px; }
+  .bar { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: var(--bg); border: 1px solid var(--line); margin: 6px 0; }
+  .bar span { height: 100%; }
+  .bar .b5 { background: var(--accent); }
+  .bar .b4 { background: #e06a54; }
+  .bar .b3 { background: #d4c4b2; }
+  .bar .b2 { background: #a9bcae; }
+  .bar .b1 { background: var(--cool); }
+  .res-sub { display: flex; justify-content: space-between; font-size: 12px; color: var(--ink-3); }
+  .tag { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 99px; margin-left: 6px; font-weight: 600; }
+  .tag.hong { background: var(--accent-soft); color: var(--accent); }
+  .tag.mid  { background: #f3ece3; color: #9a8468; }
+  .tag.la   { background: var(--cool-soft); color: var(--cool); }
+
+  /* ---------- danmaku ---------- */
+  .dm-area {
+    position: relative; height: 116px; overflow: hidden;
+    background: linear-gradient(180deg, #fdf3ef 0%, var(--paper) 100%);
+    border: 1px solid var(--line); border-radius: 10px;
+    margin-bottom: 14px;
+  }
+  .dm {
+    position: absolute; left: 100%; white-space: nowrap;
+    font-size: 13px; font-weight: 600; line-height: 26px;
+    will-change: transform;
+    animation: dm-move linear infinite;
+    text-shadow: 0 1px 0 #fff;
+  }
+  .dm .who { font-weight: 700; margin-right: 4px; }
+  .dm.s-hong { color: var(--accent); }
+  .dm.s-mid { color: #9a8468; }
+  .dm.s-la { color: var(--cool); }
+  @keyframes dm-move {
+    from { transform: translateX(0); }
+    to { transform: translateX(calc(-100% - 720px)); }
+  }
+  .dm-empty {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    color: var(--ink-3); font-size: 13px;
+  }
+  .cmt-input {
+    width: 100%; margin-top: 8px; padding: 7px 10px;
+    border: 1px solid var(--line); border-radius: 8px;
+    font-size: 13px; font-family: inherit; background: var(--bg); color: var(--ink);
+    outline: none;
+  }
+  .cmt-input:focus { border-color: var(--accent); background: #fff; }
+
+  .live-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); margin-right: 6px; animation: pulse 1.6s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .25; } }
+
+  .share-box { display: flex; gap: 8px; margin-top: 12px; }
+  .share-box input { flex: 1; font-size: 13px; }
+  .toast {
+    position: fixed; left: 50%; bottom: 40px; transform: translateX(-50%) translateY(20px);
+    background: var(--ink); color: #fff; padding: 10px 20px; border-radius: 99px;
+    font-size: 14px; opacity: 0; pointer-events: none; transition: all .25s;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .notice { background: #fff8e6; border: 1px solid #f0e2bb; color: #8a6d2f; padding: 10px 14px; border-radius: 10px; font-size: 13px; margin-bottom: 18px; }
+  @media (max-width: 480px) {
+    .wrap { padding: 20px 14px 60px; }
+    .scale button { font-size: 12px; padding: 8px 0; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="logo"><span class="hong">夯</span>到<span class="la">拉</span>投票</div>
+      <div class="slogan">从夯到拉，一目了然</div>
+    </div>
+    <a class="backlink" id="navHome" href="#/" style="display:none">← 返回首页</a>
+  </header>
+  <div id="app"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@tencent-ai/workbuddy-cloud-sdk@dev/lib/index.global.js"></script>
+<script>
+/* =========================================================
+ * 数据层（Store）
+ * 本地模式：localStorage。
+ * 字段结构与未来云服务版完全一致，切换后端时只需替换本模块。
+ * ========================================================= */
+const LocalStore = (() => {
+  const K_POLLS  = 'hongla_polls';
+  const K_VOTES  = 'hongla_votes';
+  const K_CMTS   = 'hongla_comments';
+  const K_SEEDED = 'hongla_seeded_v1';
+
+  const read  = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
+  const write = (k, v) => localStorage.setItem(k, JSON.stringify(v));
+
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+
+  function seed() {
+    if (localStorage.getItem(K_SEEDED)) return;
+    localStorage.setItem(K_SEEDED, '1');
+    if (read(K_POLLS, []).length) return;
+    createPoll('AI 大模型', ['ChatGPT', 'Claude', 'Gemini', 'DeepSeek', '通义千问']);
+  }
+
+  function listPolls() {
+    return read(K_POLLS, []).sort((a, b) => b.createdAt - a.createdAt);
+  }
+  function getPoll(id) {
+    return read(K_POLLS, []).find(p => p.id === id) || null;
+  }
+  function createPoll(title, optionNames) {
+    const polls = read(K_POLLS, []);
+    const poll = {
+      id: uid(),
+      title,
+      options: optionNames.map(n => ({ id: uid(), name: n })),
+      createdAt: Date.now(),
+    };
+    polls.push(poll);
+    write(K_POLLS, polls);
+    return poll;
+  }
+  function deletePoll(id) {
+    write(K_POLLS, read(K_POLLS, []).filter(p => p.id !== id));
+    write(K_VOTES, read(K_VOTES, []).filter(v => v.pollId !== id));
+    write(K_CMTS, read(K_CMTS, []).filter(c => c.pollId !== id));
+  }
+
+  /* 提交/更新评级 + 锐评（voterKey = IP 或设备指纹；同一标识每题一份选票，重复提交视为修改） */
+  function submitVotes(pollId, ratings, comments /* {optionId: text} */, voterKey) {
+    const voter = voterKey;
+    const votes = read(K_VOTES, []).filter(v => !(v.pollId === pollId && v.voterKey === voter));
+    const now = Date.now();
+    for (const [optId, score] of Object.entries(ratings)) {
+      votes.push({ id: uid(), pollId, optionId: optId, score, voterKey: voter, votedAt: now });
+    }
+    write(K_VOTES, votes);
+    // 锐评：只覆盖本次提交涉及的选项，空文本视为删除
+    const optIds = new Set(Object.keys(ratings));
+    const cmts = read(K_CMTS, []).filter(c => !(c.pollId === pollId && c.voterKey === voter && optIds.has(c.optionId)));
+    for (const [optId, text] of Object.entries(comments || {})) {
+      const t = (text || '').trim();
+      if (t && optIds.has(optId)) cmts.push({ id: uid(), pollId, optionId: optId, text: t.slice(0, 50), score: ratings[optId], voterKey: voter, votedAt: now });
+    }
+    write(K_CMTS, cmts);
+  }
+  function myComments(pollId, voterKey) {
+    const voter = voterKey;
+    const out = {};
+    read(K_CMTS, []).forEach(c => { if (c.pollId === pollId && c.voterKey === voter) out[c.optionId] = c.text; });
+    return out;
+  }
+  function myVotes(pollId, voterKey) {
+    const voter = voterKey;
+    const out = {};
+    read(K_VOTES, []).forEach(v => { if (v.pollId === pollId && v.voterKey === voter) out[v.optionId] = v.score; });
+    return out;
+  }
+  function pollResults(pollId) {
+    const poll = getPoll(pollId);
+    if (!poll) return null;
+    const votes = read(K_VOTES, []).filter(v => v.pollId === pollId);
+    const rows = poll.options.map(o => {
+      const vs = votes.filter(v => v.optionId === o.id);
+      const dist = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+      vs.forEach(v => { dist[v.score] = (dist[v.score] || 0) + 1; });
+      const n = vs.length;
+      const avg = n ? vs.reduce((s, v) => s + v.score, 0) / n : 0;
+      return { optionId: o.id, name: o.name, count: n, avg, dist };
+    }).sort((a, b) => b.avg - a.avg || b.count - a.count);
+    const total = votes.length;
+    const comments = read(K_CMTS, []).filter(c => c.pollId === pollId)
+      .sort((a, b) => a.votedAt - b.votedAt);
+    return { poll, rows, total, voters: new Set(votes.map(v => v.voterKey || v.voterId)).size, comments };
+  }
+
+  function onChange(cb) {
+    window.addEventListener('storage', cb);
+  }
+
+  return { seed, listPolls, getPoll, createPoll, deletePoll, submitVotes, myVotes, myComments, pollResults, onChange, uid };
+})();
+
+/* =========================================================
+ * 身份识别（IP 优先，设备指纹兜底）
+ * 上云后可整体替换为服务端取 X-Forwarded-For。
+ * ========================================================= */
+const Identity = (() => {
+  let cached = null, pending = null;
+
+  async function fetchText(url, ms = 2500) {
+    const c = new AbortController();
+    const t = setTimeout(() => c.abort(), ms);
+    try {
+      const r = await fetch(url, { signal: c.signal });
+      if (!r.ok) throw 0;
+      return await r.text();
+    } catch { return null; } finally { clearTimeout(t); }
+  }
+
+  function fingerprint() {
+    let seed = '';
+    try {
+      const c = document.createElement('canvas'), ctx = c.getContext('2d');
+      ctx.textBaseline = 'top'; ctx.font = '16px Arial';
+      ctx.fillText('夯拉投票-fp-2026', 2, 2);
+      seed += c.toDataURL();
+    } catch {}
+    seed += navigator.userAgent + 'x' + screen.width + 'x' + screen.height
+          + (Intl.DateTimeFormat().resolvedOptions().timeZone || '');
+    let h = 5381;
+    for (let i = 0; i < seed.length; i++) h = ((h << 5) + h + seed.charCodeAt(i)) >>> 0;
+    return 'fp_' + h.toString(36);
+  }
+
+  /* 候选 IP 接口均返回含 .ip 字段的 JSON，按可达性依次尝试 */
+  const IP_APIS = [
+    'https://myip.ipip.net/json',
+    'https://api.ipify.org?format=json',
+    'https://api.ip.sb/jsonip',
+  ];
+
+  function resolve() {
+    if (cached) return Promise.resolve(cached);
+    if (!pending) pending = (async () => {
+      for (const u of IP_APIS) {
+        const t = await fetchText(u);
+        if (!t) continue;
+        try {
+          const ip = JSON.parse(t).ip;
+          if (typeof ip === 'string' && /^[\d.:a-fA-F]+$/.test(ip)) {
+            cached = { type: 'ip', value: ip };
+            return cached;
+          }
+        } catch {}
+      }
+      cached = { type: 'fp', value: fingerprint() };
+      return cached;
+    })();
+    return pending;
+  }
+
+  return { resolve };
+})();
+
+/* =========================================================
+ * 云端数据层（CloudStore）：与 LocalStore 方法一一对应（全 async）
+ * ========================================================= */
+const PUBLIC_CONFIG = {
+  endpoint: 'https://hongla-vote.app.workbuddy.host',
+  oauthRelayBaseUrl: 'https://www.workbuddy.cn/v2/as/genie-baas/oauth',
+  publishableKey: 'wbpk_ebVbTyavKioLDW0jzMQw63_VnLT20M5wZbycJ4aMSofwLo8po3aNY7u',
+};
+const CloudStore = (() => {
+  let db = null;
+  function init() {
+    if (!db && window.WorkBuddyCloud) {
+      db = WorkBuddyCloud.createWorkBuddyCloud({
+        endpoint: PUBLIC_CONFIG.endpoint,
+        oauthRelayBaseUrl: PUBLIC_CONFIG.oauthRelayBaseUrl,
+        publishableKey: PUBLIC_CONFIG.publishableKey,
+      }).database;
+    }
+    return db;
+  }
+  const row2poll = r => ({ id: r.id, title: r.title, options: r.options, createdAt: Date.parse(r.created_at) });
+  const unw = p => p.then(({ data, error }) => { if (error) throw error; return data; });
+  const api = {
+    async seed() {
+      const d = init(); if (!d) return;
+      await unw(d.from('polls').upsert({
+        id: 'seed-ai-models',
+        title: 'AI 大模型',
+        options: [
+          { id: 'opt-chatgpt', name: 'ChatGPT' },
+          { id: 'opt-claude', name: 'Claude' },
+          { id: 'opt-gemini', name: 'Gemini' },
+          { id: 'opt-deepseek', name: 'DeepSeek' },
+          { id: 'opt-qwen', name: '通义千问' },
+        ],
+      }, { ignoreDuplicates: true }));
+    },
+    async listPolls() {
+      const d = init();
+      return (await unw(d.from('polls').select('*').order('created_at', { ascending: false }))).map(row2poll);
+    },
+    async getPoll(id) {
+      const d = init();
+      const r = await unw(d.from('polls').select('*').eq('id', id).maybeSingle());
+      return r ? row2poll(r) : null;
+    },
+    async createPoll(title, optionNames) {
+      const d = init();
+      const poll = { id: LocalStore.uid(), title, options: optionNames.map(n => ({ id: LocalStore.uid(), name: n })) };
+      await unw(d.from('polls').insert(poll));
+      return poll;
+    },
+    async deletePoll(id) {
+      const d = init();
+      await unw(d.from('votes').delete().eq('poll_id', id));
+      await unw(d.from('comments').delete().eq('poll_id', id));
+      await unw(d.from('polls').delete().eq('id', id));
+    },
+    async submitVotes(pollId, ratings, comments, voterKey) {
+      const d = init();
+      await unw(d.from('votes').delete().match({ poll_id: pollId, voter_key: voterKey }));
+      const rows = Object.entries(ratings).map(([optId, score]) =>
+        ({ poll_id: pollId, option_id: optId, score, voter_key: voterKey }));
+      if (rows.length) await unw(d.from('votes').insert(rows));
+      const optIds = Object.keys(ratings);
+      if (optIds.length) {
+        await unw(d.from('comments').delete().match({ poll_id: pollId, voter_key: voterKey }).in('option_id', optIds));
+      }
+      const cmts = Object.entries(comments || {})
+        .filter(([optId, t]) => (t || '').trim() && optIds.includes(optId))
+        .map(([optId, t]) => ({ poll_id: pollId, option_id: optId, text: t.trim().slice(0, 50), score: ratings[optId], voter_key: voterKey }));
+      if (cmts.length) await unw(d.from('comments').insert(cmts));
+    },
+    async myVotes(pollId, voterKey) {
+      const d = init();
+      const rows = await unw(d.from('votes').select('option_id, score').match({ poll_id: pollId, voter_key: voterKey }));
+      const out = {}; rows.forEach(r => { out[r.option_id] = r.score; });
+      return out;
+    },
+    async myComments(pollId, voterKey) {
+      const d = init();
+      const rows = await unw(d.from('comments').select('option_id, text').match({ poll_id: pollId, voter_key: voterKey }));
+      const out = {}; rows.forEach(r => { out[r.option_id] = r.text; });
+      return out;
+    },
+    async pollResults(pollId) {
+      const d = init();
+      const poll = await api.getPoll(pollId);
+      if (!poll) return null;
+      const [votes, comments] = await Promise.all([
+        unw(d.from('votes').select('*').eq('poll_id', pollId)),
+        unw(d.from('comments').select('*').eq('poll_id', pollId).order('voted_at', { ascending: true })),
+      ]);
+      const rows = poll.options.map(o => {
+        const vs = votes.filter(v => v.option_id === o.id);
+        const dist = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+        vs.forEach(v => { dist[v.score] = (dist[v.score] || 0) + 1; });
+        const n = vs.length;
+        const avg = n ? vs.reduce((s, v) => s + v.score, 0) / n : 0;
+        return { optionId: o.id, name: o.name, count: n, avg, dist };
+      }).sort((a, b) => b.avg - a.avg || b.count - a.count);
+      return {
+        poll, rows,
+        total: votes.length,
+        voters: new Set(votes.map(v => v.voter_key)).size,
+        comments: comments.map(c => ({ id: 'c' + c.id, optionId: c.option_id, text: c.text, score: c.score })),
+      };
+    },
+    onChange() {},   // 云端模式靠结果页轮询刷新
+    uid: LocalStore.uid,
+  };
+  return api;
+})();
+
+/* ---------- 后端选择：云端探测成功用云端，失败回退本地 ---------- */
+let Store = LocalStore;
+let backendMode = 'local';
+async function pickBackend() {
+  if (!window.WorkBuddyCloud) return;
+  try {
+    const probe = WorkBuddyCloud.createWorkBuddyCloud({
+      endpoint: PUBLIC_CONFIG.endpoint,
+      oauthRelayBaseUrl: PUBLIC_CONFIG.oauthRelayBaseUrl,
+      publishableKey: PUBLIC_CONFIG.publishableKey,
+    }).database;
+    const { error } = await probe.from('polls').select('id').limit(1);
+    if (error) throw error;
+    Store = CloudStore;
+    backendMode = 'cloud';
+  } catch (e) {
+    console.warn('云端连接失败，回退本地模式：', (e && e.message) || e);
+  }
+}
+
+/* =========================================================
+ * 常量与工具
+ * ========================================================= */
+const SCORES = [
+  { s: 5, label: '夯爆' },
+  { s: 4, label: '夯' },
+  { s: 3, label: '一般' },
+  { s: 2, label: '有点拉' },
+  { s: 1, label: '拉胯' },
+];
+const avgTag = a => a >= 4 ? '<span class="tag hong">夯</span>'
+             : a >= 2.5 ? '<span class="tag mid">中</span>'
+             : a > 0 ? '<span class="tag la">拉</span>' : '';
+const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const fmtDate = t => new Date(t).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 1800);
+}
+
+/* =========================================================
+ * 视图
+ * ========================================================= */
+const app = document.getElementById('app');
+let current = { view: 'home', id: null };
+let draftRatings = {};   // 投票页暂存评级
+let draftCounts = {};    // 新建页选项行计数
+
+function route() {
+  const h = location.hash || '#/';
+  const m = h.match(/^#\/(vote|result)\/(\w+)/);
+  document.getElementById('navHome').style.display = m ? '' : 'none';
+  if (m) {
+    current = { view: m[1], id: m[2] };
+    draftRatings = {};
+    (m[1] === 'vote') ? renderVote() : renderResult();
+  } else {
+    current = { view: 'home', id: null };
+    renderHome();
+  }
+}
+window.addEventListener('hashchange', route);
+
+/* ---------- 首页 ---------- */
+async function renderHome() {
+  const polls = await Store.listPolls();
+  const notice = backendMode === 'cloud'
+    ? '<div class="notice" style="background:var(--cool-soft);border-color:#cfe0d6;color:#3e5c4c">✅ 已连接云端：投票与锐评数据全网实时同步，任何设备打开链接都能看到最新结果。</div>'
+    : '<div class="notice">当前为<b>本地体验模式</b>（云端连接失败）：数据保存在本浏览器中，投票链接仅同一浏览器有效。</div>';
+  app.innerHTML = `
+    ${notice}
+    <div class="card">
+      <h2>新建投票</h2>
+      <label>投票题目</label>
+      <input type="text" id="newTitle" placeholder="例如：AI 大模型，谁最夯？" maxlength="60">
+      <label>投票选项（至少 2 个）</label>
+      <div id="optRows"></div>
+      <button class="btn ghost sm" id="addOpt">＋ 加一个选项</button>
+      <button class="btn primary wide" id="createBtn">创建投票</button>
+    </div>
+    <div class="card">
+      <h2>我的投票项目 <span class="tiny">（共 ${polls.length} 个）</span></h2>
+      <div id="pollList"></div>
+    </div>`;
+  draftCounts = {};
+  if (!polls.some(p => p.options.length)) addOptRow('ChatGPT');
+  addOptRow('Claude');
+  addOptRow();
+  renderPollList(polls);
+
+  document.getElementById('addOpt').onclick = () => addOptRow();
+  document.getElementById('createBtn').onclick = onCreate;
+  app.querySelectorAll('.poll-item .t').forEach(el => {
+    el.onclick = () => location.hash = '#/result/' + el.dataset.id;
+  });
+  app.querySelectorAll('.poll-item .del').forEach(el => {
+    el.onclick = async () => {
+      if (!confirm('确定删除该投票项目及其全部投票记录？')) return;
+      try { await Store.deletePoll(el.dataset.id); toast('已删除'); } catch (e) { toast('删除失败：' + ((e && e.message) || e)); }
+      renderHome();
+    };
+  });
+}
+function addOptRow(val = '') {
+  const row = document.createElement('div');
+  row.className = 'opt-row';
+  row.innerHTML = `<input type="text" placeholder="选项名称" maxlength="30" value="${esc(val)}"><button class="del" title="删除该选项">✕</button>`;
+  row.querySelector('.del').onclick = () => row.remove();
+  document.getElementById('optRows').appendChild(row);
+}
+function renderPollList(polls) {
+  const box = document.getElementById('pollList');
+  if (!polls.length) { box.innerHTML = '<div class="empty">还没有投票项目，先创建一个吧</div>'; return; }
+  box.innerHTML = polls.map(p => `
+    <div class="poll-item">
+      <div>
+        <div class="t" data-id="${p.id}">${esc(p.title)}</div>
+        <div class="meta">${p.options.length} 个选项 · 创建于 ${fmtDate(p.createdAt)}</div>
+      </div>
+      <div style="display:flex;gap:6px;flex:none">
+        <a class="btn ghost sm" href="#/vote/${p.id}">去投票</a>
+        <a class="btn sm" href="#/result/${p.id}">看结果</a>
+        <button class="del btn ghost sm" data-id="${p.id}" title="删除">✕</button>
+      </div>
+    </div>`).join('');
+}
+async function onCreate() {
+  const title = document.getElementById('newTitle').value.trim();
+  const opts = [...document.querySelectorAll('#optRows input')].map(i => i.value.trim()).filter(Boolean);
+  if (!title) { toast('请填写投票题目'); return; }
+  if (opts.length < 2) { toast('至少需要 2 个选项'); return; }
+  if (new Set(opts).size !== opts.length) { toast('选项名称不能重复'); return; }
+  let poll;
+  try { poll = await Store.createPoll(title, opts); }
+  catch (e) { toast('创建失败：' + ((e && e.message) || e)); return; }
+  toast('创建成功');
+  location.hash = '#/result/' + poll.id;
+}
+
+/* ---------- 投票页 ---------- */
+async function renderVote() {
+  const poll = await Store.getPoll(current.id);
+  if (!poll) { app.innerHTML = '<div class="card"><div class="empty">投票不存在或已被删除</div></div>'; return; }
+  draftRatings = {};
+  app.innerHTML = `
+    <div class="card">
+      <div class="tiny" style="margin-bottom:6px">${fmtDate(poll.createdAt)} 发起</div>
+      <h2 style="font-size:20px">${esc(poll.title)}</h2>
+      <div class="muted" style="margin-bottom:6px">给每个选项打个分：从夯到拉，顺便锐评一句</div>
+      <div class="tiny" id="idBadge" style="margin-bottom:6px">防重复投票：正在获取网络标识…</div>
+      <div id="voteList"></div>
+      <div class="scale-hint"><span class="hong">夯 ▸ 越靠左越夯</span><span>越靠右越拉 ◂ 拉</span></div>
+      <button class="btn primary wide" id="submitVote">提交我的评级</button>
+      <div style="text-align:center;margin-top:10px"><a class="muted" href="#/result/${poll.id}" style="color:var(--ink-2)">先看看大家评得怎么样 →</a></div>
+    </div>`;
+  const list = document.getElementById('voteList');
+  list.innerHTML = poll.options.map(o => `
+    <div class="vote-opt" data-opt="${o.id}">
+      <div class="name">${esc(o.name)}</div>
+      <div class="scale">
+        ${SCORES.map(s => `<button data-s="${s.s}" class="${draftRatings[o.id] === s.s ? 'on' : ''}">${s.label}</button>`).join('')}
+      </div>
+      <input class="cmt-input" type="text" data-cmt="${o.id}" maxlength="50"
+             placeholder="锐评一句（选填，会以弹幕展示在结果页）" value="${esc(myCmts[o.id] || '')}">
+    </div>`).join('');
+  list.querySelectorAll('.scale button').forEach(b => {
+    b.onclick = () => {
+      const optId = b.closest('.vote-opt').dataset.opt;
+      draftRatings[optId] = Number(b.dataset.s);
+      b.parentElement.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+    };
+  });
+  document.getElementById('submitVote').onclick = async () => {
+    if (!Object.keys(draftRatings).length) { toast('至少给一个选项评级'); return; }
+    const btn = document.getElementById('submitVote');
+    btn.disabled = true; btn.textContent = '正在校验身份…';
+    const key = await Identity.resolve();
+    const comments = {};
+    app.querySelectorAll('.cmt-input').forEach(i => { comments[i.dataset.cmt] = i.value; });
+    try {
+      await Store.submitVotes(poll.id, draftRatings, comments, key.value);
+      toast('已提交，锐评已上弹幕！');
+      setTimeout(() => location.hash = '#/result/' + poll.id, 400);
+    } catch (e) {
+      toast('提交失败：' + ((e && e.message) || e));
+      btn.disabled = false; btn.textContent = '提交我的评级';
+    }
+  };
+  // 异步解析身份：更新提示 + 回填我上次的评级与锐评
+  Identity.resolve().then(async k => {
+    const badge = document.getElementById('idBadge');
+    if (badge) badge.textContent = k.type === 'ip'
+      ? `防重复投票：已识别 IP ${k.value}，同一 IP 每题限一份选票（重复提交视为修改）`
+      : '防重复投票：IP 获取失败，已改用设备标识（同一设备限一份选票）';
+    const mine = await Store.myVotes(poll.id, k.value);
+    const myCmts = await Store.myComments(poll.id, k.value);
+    Object.assign(draftRatings, mine);
+    app.querySelectorAll('.vote-opt').forEach(row => {
+      const optId = row.dataset.opt;
+      if (mine[optId]) row.querySelectorAll('.scale button').forEach(b => b.classList.toggle('on', Number(b.dataset.s) === mine[optId]));
+      const ci = row.querySelector('.cmt-input');
+      if (ci && myCmts[optId]) ci.value = myCmts[optId];
+    });
+  });
+}
+
+/* ---------- 结果页（实时刷新，弹幕动画不重置） ---------- */
+const dmSeen = new Set();      // 已上墙的锐评 id
+function dmClass(s) { return s >= 4 ? 's-hong' : s >= 3 ? 's-mid' : 's-la'; }
+function spawnDanmaku(c, optName, init) {
+  const area = document.getElementById('dmArea');
+  if (!area) return;
+  area.querySelector('.dm-empty')?.remove();
+  const el = document.createElement('span');
+  el.className = 'dm ' + dmClass(c.score);
+  el.innerHTML = `<span class="who">【${esc(optName)}】</span>${esc(c.text)}`;
+  const dur = 9 + Math.random() * 8;
+  el.style.top = (6 + Math.floor(Math.random() * 4) * 27) + 'px';
+  el.style.animationDuration = dur + 's';
+  if (init) el.style.animationDelay = -(Math.random() * dur) + 's';
+  area.appendChild(el);
+  el.addEventListener('animationiteration', () => { // 每轮循环随机换轨道，避免长期重叠
+    el.style.top = (6 + Math.floor(Math.random() * 4) * 27) + 'px';
+  });
+}
+function renderResult() {
+  Store.pollResults(current.id).then(r => {
+  if (!r) { app.innerHTML = '<div class="card"><div class="empty">投票不存在或已被删除</div></div>'; return; }
+  dmSeen.clear();
+  const shareUrl = location.origin + location.pathname + '#/vote/' + r.poll.id;
+  app.innerHTML = `
+    <div class="card">
+      <h2 style="font-size:20px">${esc(r.poll.title)}</h2>
+      <div class="muted" id="statLine" style="margin-bottom:12px"></div>
+      <div class="dm-area" id="dmArea"><div class="dm-empty">弹幕区 · 大家还没锐评，等你来一句</div></div>
+      <div id="resRows"></div>
+    </div>
+    <div class="card">
+      <h2>分享投票</h2>
+      <div class="muted" style="margin-bottom:8px">把链接发给其他人，让他们也从夯到拉评一评、锐评一句：</div>
+      <div class="share-box">
+        <input type="text" id="shareInput" readonly value="${esc(shareUrl)}">
+        <button class="btn sm" id="copyBtn">复制链接</button>
+      </div>
+      <div style="margin-top:12px;display:flex;gap:8px">
+        <a class="btn ghost sm" href="#/vote/${r.poll.id}">我也去投一票</a>
+      </div>
+    </div>`;
+  document.getElementById('copyBtn').onclick = () => {
+    navigator.clipboard?.writeText(shareUrl).then(() => toast('链接已复制'), () => toast('复制失败，请手动选择'));
+  };
+  updateResult(true);
+  });
+}
+async function updateResult(init = false) {
+  const r = await Store.pollResults(current.id);
+  if (!r) return;
+  const { rows, total, voters, comments, poll } = r;
+  const optName = id => (poll.options.find(o => o.id === id) || {}).name || '';
+  document.getElementById('statLine').innerHTML =
+    `<span class="live-dot"></span>实时结果 · 共 <b>${total}</b> 票 · <b>${voters}</b> 人参与（按 IP 去重） · <b>${comments.length}</b> 条锐评 · 2 秒自动刷新`;
+  const maxCount = Math.max(1, ...rows.map(x => x.count));
+  document.getElementById('resRows').innerHTML = rows.map((x, i) => `
+    <div class="res-row">
+      <div class="res-head">
+        <div><span class="rank">#${i + 1}</span><span class="nm">${esc(x.name)}</span>${avgTag(x.avg)}</div>
+        <div class="res-score"><span class="num" style="color:${x.avg >= 4 ? 'var(--accent)' : x.avg > 0 && x.avg < 2.5 ? 'var(--cool)' : 'var(--ink)'}">${x.avg ? x.avg.toFixed(1) : '—'}</span><span class="tiny"> / 5 · ${x.count} 票</span></div>
+      </div>
+      <div class="bar">
+        ${[5, 4, 3, 2, 1].map(s => `<span class="b${s}" style="width:${x.dist[s] ? (x.dist[s] / maxCount * 100) : 0}%"></span>`).join('')}
+      </div>
+      <div class="res-sub"><span>夯爆 ${x.dist[5] || 0} · 夯 ${x.dist[4] || 0} · 一般 ${x.dist[3] || 0}</span><span>有点拉 ${x.dist[2] || 0} · 拉胯 ${x.dist[1] || 0}</span></div>
+    </div>`).join('');
+  if (!total) document.getElementById('resRows').innerHTML = '<div class="empty" style="padding:8px 0 12px">还没有人投票，快分享出去吧</div>';
+  // 弹幕增量同步：只追加新锐评，不打断已有动画
+  comments.forEach(c => {
+    if (dmSeen.has(c.id)) return;
+    dmSeen.add(c.id);
+    spawnDanmaku(c, optName(c.optionId), init);
+  });
+}
+
+/* ---------- 启动 ---------- */
+(async () => {
+  await pickBackend();
+  try { await Store.seed(); } catch (e) { console.warn('种子数据写入失败：', e); }
+  Store.onChange(() => {
+    if (current.view === 'result') updateResult();
+  });
+  route();
+})();
+setInterval(() => { if (current.view === 'result') updateResult(); }, 2000);
+</script>
+</body>
+</html>
