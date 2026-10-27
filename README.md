@@ -17,3 +17,14 @@
 | 本地模式 | 其他来源且云端探测失败 | 数据保存在本浏览器 localStorage，链接仅同一浏览器有效 |
 
 单文件应用（`index.html`），无构建步骤；云 SDK 同源托管于仓库（`workbuddy-cloud-sdk.js`），加载失败时自动回退 CDN。
+
+## 联系我
+
+<div align="center">
+  <img src="qrcode.jpg" width="180" alt="公众号二维码">&nbsp;&nbsp;&nbsp;
+  <img src="xhs-qr.jpg" width="180" alt="小红书二维码">
+  <p>
+    <b>扫码关注公众号</b>：知识地下城 · 更多 AI 游戏与更新<br>
+    <b>小红书 · 酒里加盐</b>（小红书号 6100441379）：酒馆会往酒里加盐，让顾客越喝越渴
+  </p>
+</div>
