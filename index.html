@@ -216,7 +216,7 @@
   <header>
     <div>
       <div class="logo"><span class="hong">夯</span>到<span class="la">拉</span>投票</div>
-      <div class="slogan">从夯到拉，一目了然 · <span id="verTag">v5</span></div>
+      <div class="slogan">从夯到拉，一目了然 · <span id="verTag">v6</span></div>
     </div>
     <a class="backlink" id="navHome" href="#/" style="display:none">← 返回首页</a>
   </header>
@@ -716,12 +716,24 @@ async function renderVote() {
   const poll = await Store.getPoll(current.id);
   if (!poll) { app.innerHTML = '<div class="card"><div class="empty">投票不存在或已被删除</div></div>'; return; }
   draftRatings = {};
+  // 先解析身份并取回我上次的评级/锐评，再一次性渲染（消除变量时序问题）
+  let key = { type: 'fp', value: 'fp_' + Date.now().toString(36) };
+  let mine = {}, myCmts = {};
+  try {
+    key = await Identity.resolve(2000);   // 最多等 2 秒，永不卡投票
+    mine = await Store.myVotes(poll.id, key.value);
+    myCmts = await Store.myComments(poll.id, key.value);
+  } catch (e) { console.warn('身份识别/回填失败，使用兜底标识：', e); }
+  Object.assign(draftRatings, mine);
+  const badgeText = key.type === 'ip'
+    ? '防重复投票：已识别 IP ' + esc(key.value) + '，同一 IP 每题限一份选票（重复提交视为修改）'
+    : '防重复投票：使用设备标识（每台设备每题限一份选票）';
   app.innerHTML = `
     <div class="card">
       <div class="tiny" style="margin-bottom:6px">${fmtDate(poll.createdAt)} 发起</div>
       <h2 style="font-size:20px">${esc(poll.title)}</h2>
       <div class="muted" style="margin-bottom:6px">给每个选项打个分：从夯到拉，顺便锐评一句</div>
-      <div class="tiny" id="idBadge" style="margin-bottom:6px">防重复投票：本机标识生成中（不影响投票，可直接投）</div>
+      <div class="tiny" id="idBadge" style="margin-bottom:6px">${badgeText}</div>
       <div id="voteList"></div>
       <div class="scale-hint"><span class="hong">夯 ▸ 顶级 ▸ 人上人</span><span>NPC ▸ 拉</span></div>
       <button class="btn primary wide" id="submitVote">提交我的评级</button>
@@ -732,7 +744,7 @@ async function renderVote() {
     <div class="vote-opt" data-opt="${o.id}">
       <div class="name">${esc(o.name)}</div>
       <div class="scale">
-        ${SCORES.map(s => `<button data-s="${s.s}" class="${draftRatings[o.id] === s.s ? 'on' : ''}">${s.label}</button>`).join('')}
+        ${SCORES.map(sn => `<button data-s="${sn.s}" class="${draftRatings[o.id] === sn.s ? 'on' : ''}">${sn.label}</button>`).join('')}
       </div>
       <input class="cmt-input" type="text" data-cmt="${o.id}" maxlength="50"
              placeholder="锐评一句（选填，会以弹幕展示在结果页）" value="${esc(myCmts[o.id] || '')}">
@@ -747,11 +759,10 @@ async function renderVote() {
   document.getElementById('submitVote').onclick = async () => {
     if (!Object.keys(draftRatings).length) { toast('至少给一个选项评级'); return; }
     const btn = document.getElementById('submitVote');
-    btn.disabled = true; btn.textContent = '正在校验身份…';
+    btn.disabled = true; btn.textContent = '正在提交…';
     const comments = {};
     app.querySelectorAll('.cmt-input').forEach(i => { comments[i.dataset.cmt] = i.value; });
     try {
-      const key = await Identity.resolve(2000);   // 最多等 2 秒，到点用设备指纹兜底，绝不卡投票
       await Store.submitVotes(poll.id, draftRatings, comments, key.value);
       toast('已提交，锐评已上弹幕！');
       setTimeout(() => location.hash = '#/result/' + poll.id, 400);
@@ -760,27 +771,6 @@ async function renderVote() {
       btn.disabled = false; btn.textContent = '提交我的评级';
     }
   };
-  // 异步解析身份：更新提示 + 回填我上次的评级与锐评（任何异常都不阻塞投票）
-  Identity.resolve().then(async k => {
-    try {
-    const badge = document.getElementById('idBadge');
-    if (badge) badge.textContent = k.type === 'ip'
-      ? `防重复投票：已识别 IP ${k.value}，同一 IP 每题限一份选票（重复提交视为修改）`
-      : '防重复投票：使用设备标识（每台设备每题限一份选票）';
-    const mine = await Store.myVotes(poll.id, k.value);
-    const myCmts = await Store.myComments(poll.id, k.value);
-    Object.assign(draftRatings, mine);
-    app.querySelectorAll('.vote-opt').forEach(row => {
-      const optId = row.dataset.opt;
-      if (mine[optId]) row.querySelectorAll('.scale button').forEach(b => b.classList.toggle('on', Number(b.dataset.s) === mine[optId]));
-      const ci = row.querySelector('.cmt-input');
-      if (ci && myCmts[optId]) ci.value = myCmts[optId];
-    });
-    } catch (e) { console.warn('身份回填失败：', e); }
-  }).catch(() => {
-    const badge = document.getElementById('idBadge');
-    if (badge) badge.textContent = '防重复投票：网络标识不可用，将使用设备标识';
-  });
 }
 
 /* ---------- 结果页（实时刷新，弹幕动画不重置） ---------- */
