@@ -9,6 +9,23 @@
   if (location.hostname === "slatinwine.github.io") {
     location.replace("https://hongla-vote.app.workbuddy.host/?sharecode=5T3C5P4ZOX" + location.hash);
   }
+  // 页面级错误可视化（微信等环境没有控制台，报错直接显示出来）
+  window.__errs = [];
+  window.__showErr = function (m) {
+    try {
+      window.__errs.push(String(m).slice(0, 120));
+      var b = document.getElementById('errBanner');
+      if (!b) {
+        b = document.createElement('div');
+        b.id = 'errBanner';
+        b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#d6453e;color:#fff;font-size:12px;line-height:1.4;padding:6px 10px;max-height:36%;overflow:auto;word-break:break-all;';
+        (document.body || document.documentElement).appendChild(b);
+      }
+      b.textContent = '页面异常（截图发我）：' + window.__errs.slice(-3).join(' | ');
+    } catch (e) {}
+  };
+  window.addEventListener('error', function (e) { window.__showErr(e.message || 'script error'); });
+  window.addEventListener('unhandledrejection', function (e) { var r = e.reason; window.__showErr((r && r.message) || String(r)); });
 </script>
 <style>
   :root {
@@ -199,7 +216,7 @@
   <header>
     <div>
       <div class="logo"><span class="hong">夯</span>到<span class="la">拉</span>投票</div>
-      <div class="slogan">从夯到拉，一目了然 · <span id="verTag">v4</span></div>
+      <div class="slogan">从夯到拉，一目了然 · <span id="verTag">v5</span></div>
     </div>
     <a class="backlink" id="navHome" href="#/" style="display:none">← 返回首页</a>
   </header>
@@ -704,7 +721,7 @@ async function renderVote() {
       <div class="tiny" style="margin-bottom:6px">${fmtDate(poll.createdAt)} 发起</div>
       <h2 style="font-size:20px">${esc(poll.title)}</h2>
       <div class="muted" style="margin-bottom:6px">给每个选项打个分：从夯到拉，顺便锐评一句</div>
-      <div class="tiny" id="idBadge" style="margin-bottom:6px">防重复投票：正在获取网络标识…</div>
+      <div class="tiny" id="idBadge" style="margin-bottom:6px">防重复投票：本机标识生成中（不影响投票，可直接投）</div>
       <div id="voteList"></div>
       <div class="scale-hint"><span class="hong">夯 ▸ 顶级 ▸ 人上人</span><span>NPC ▸ 拉</span></div>
       <button class="btn primary wide" id="submitVote">提交我的评级</button>
@@ -749,7 +766,7 @@ async function renderVote() {
     const badge = document.getElementById('idBadge');
     if (badge) badge.textContent = k.type === 'ip'
       ? `防重复投票：已识别 IP ${k.value}，同一 IP 每题限一份选票（重复提交视为修改）`
-      : '防重复投票：IP 获取失败，已改用设备标识（同一设备限一份选票）';
+      : '防重复投票：使用设备标识（每台设备每题限一份选票）';
     const mine = await Store.myVotes(poll.id, k.value);
     const myCmts = await Store.myComments(poll.id, k.value);
     Object.assign(draftRatings, mine);
