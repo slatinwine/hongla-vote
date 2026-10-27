@@ -13,6 +13,7 @@
 | 模式 | 触发条件 | 说明 |
 |---|---|---|
 | 云端模式 | 部署在绑定的正式域名（`hongla-vote.app.workbuddy.host`） | 数据存于 WorkBuddy 云数据库（PostgreSQL），全网实时同步 |
-| 本地模式 | 其他来源（如 GitHub Pages）访问时云端探测失败 | 数据保存在本浏览器 localStorage，链接仅同一浏览器有效 |
+| 自动跳转 | 从 GitHub Pages（`slatinwine.github.io`）访问 | 云端网关按 Origin 白名单拦截跨域请求，镜像页自动跳转到全区共享的正式版链接 |
+| 本地模式 | 其他来源且云端探测失败 | 数据保存在本浏览器 localStorage，链接仅同一浏览器有效 |
 
-单文件应用（`index.html`），无构建步骤，直接打开或任意静态托管即可运行。
+单文件应用（`index.html`），无构建步骤；云 SDK 同源托管于仓库（`workbuddy-cloud-sdk.js`），加载失败时自动回退 CDN。
