@@ -199,7 +199,7 @@
   <header>
     <div>
       <div class="logo"><span class="hong">夯</span>到<span class="la">拉</span>投票</div>
-      <div class="slogan">从夯到拉，一目了然</div>
+      <div class="slogan">从夯到拉，一目了然 · <span id="verTag">v3</span></div>
     </div>
     <a class="backlink" id="navHome" href="#/" style="display:none">← 返回首页</a>
   </header>
@@ -221,7 +221,7 @@ const LocalStore = (() => {
   const K_CMTS   = 'hongla_comments';
   const K_SEEDED = 'hongla_seeded_v1';
 
-  const read  = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
+  const read  = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return (v === null || v === undefined) ? d : v; } catch { return d; } };
   const write = (k, v) => localStorage.setItem(k, JSON.stringify(v));
 
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -772,7 +772,8 @@ function dmClass(s) { return s >= 4 ? 's-hong' : s >= 3 ? 's-mid' : 's-la'; }
 function spawnDanmaku(c, optName, init) {
   const area = document.getElementById('dmArea');
   if (!area) return;
-  area.querySelector('.dm-empty')?.remove();
+  const old = area.querySelector('.dm-empty');
+  if (old) old.remove();
   const el = document.createElement('span');
   el.className = 'dm ' + dmClass(c.score);
   el.innerHTML = `<span class="who">【${esc(optName)}】</span>${esc(c.text)}`;
@@ -809,7 +810,12 @@ function renderResult() {
       </div>
     </div>`;
   document.getElementById('copyBtn').onclick = () => {
-    navigator.clipboard?.writeText(shareUrl).then(() => toast('链接已复制'), () => toast('复制失败，请手动选择'));
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(shareUrl).then(() => toast('链接已复制'), () => toast('复制失败，请手动选择'));
+    } else {
+      document.getElementById('shareInput').select();
+      toast('请长按/Ctrl+C 复制链接');
+    }
   };
   updateResult(true);
   });
