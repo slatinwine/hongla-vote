@@ -221,7 +221,7 @@
   <header>
     <div>
       <div class="logo"><span class="hong">夯</span>到<span class="la">拉</span>投票</div>
-      <div class="slogan">从夯到拉，一目了然 · <span id="verTag">v11</span></div>
+      <div class="slogan">从夯到拉，一目了然 · <span id="verTag">v12</span></div>
     </div>
     <a class="backlink" id="navHome" href="#/" style="display:none">← 返回首页</a>
   </header>
@@ -784,6 +784,56 @@ async function renderVote() {
   };
 }
 
+/* 合成带投票标题的二维码分享卡片（canvas：标题 + 二维码 + 引导语），失败返回 null 走纯二维码回退 */
+function buildQrCard(title, qrGifUrl, done) {
+  try {
+    const W = 360, H = 520;
+    const c = document.createElement('canvas');
+    const ctx = c.getContext && c.getContext('2d');
+    if (!ctx) { done(null); return; }
+    c.width = W; c.height = H;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#d6453e';               // 顶部品牌色条
+    ctx.fillRect(0, 0, W, 6);
+    // 标题：按像素宽度折行，最多两行，超出加省略号
+    ctx.fillStyle = '#2b2b2b';
+    ctx.font = 'bold 26px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    const maxW = W - 72;
+    let lines = [], line = '', truncated = false;
+    for (let i = 0; i < title.length; i++) {
+      const ch = title.charAt(i);
+      if (ctx.measureText(line + ch).width > maxW) {
+        lines.push(line);
+        line = ch;
+        if (lines.length === 2) { truncated = true; break; }
+      } else {
+        line += ch;
+      }
+    }
+    if (!truncated && line) lines.push(line);
+    if (truncated) lines[1] = lines[1].replace(/.{2}$/, '') + '…';
+    let ty = 30;
+    lines.forEach(t => { ctx.fillText(t, W / 2, ty); ty += 38; });
+    // 二维码图（等 gif 加载完成后再合成并回调）
+    const qr = new Image();
+    qr.onload = () => {
+      ctx.drawImage(qr, (W - 270) / 2, 130, 270, 270);
+      ctx.fillStyle = '#9a8468';
+      ctx.font = '17px sans-serif';
+      ctx.fillText('微信扫码或长按识别 · 来评个夯拉', W / 2, 432);
+      ctx.fillStyle = '#c9b8a5';
+      ctx.font = '14px sans-serif';
+      ctx.fillText('夯拉投票 · 从夯到拉，一目了然', W / 2, 464);
+      done(c.toDataURL('image/png'));
+    };
+    qr.onerror = () => done(null);
+    qr.src = qrGifUrl;
+  } catch (e) { console.warn('二维码卡片合成失败：', e); done(null); }
+}
+
 /* ---------- 结果页（实时刷新，弹幕动画不重置） ---------- */
 const dmSeen = new Set();      // 已上墙的锐评 id
 function dmClass(s) { return s >= 4 ? 's-hong' : s >= 3 ? 's-mid' : 's-la'; }
@@ -831,45 +881,54 @@ function renderResult() {
         <button class="btn sm" id="saveQrBtn">保存二维码</button>
       </div>
       <div id="qrBox" style="text-align:center;margin-top:14px">
-        <div class="tiny" style="margin-bottom:6px;color:var(--ink-2)">二维码分享 · 微信长按识别或扫码直接进入投票</div>
+        <div class="tiny" style="margin-bottom:6px;color:var(--ink-2)">二维码分享卡 · 带投票标题，微信长按识别或扫码进入</div>
         <div id="qrImg"></div>
       </div>
       <div style="margin-top:12px;display:flex;gap:8px">
         <a class="btn ghost sm" href="#/vote/${r.poll.id}">我也去投一票</a>
       </div>
     </div>`;
-  let qrDataUrl = null;
+  let qrDataUrl = null;    // 纯二维码 gif（回退用）
+  let cardDataUrl = null;  // 带标题的分享卡片 png
   try {
     if (window.qrcode) {
       const qr = qrcode(0, 'M');
       qr.addData(qrUrl);
       qr.make();
       qrDataUrl = qr.createDataURL(6, 8);
-      document.getElementById('qrImg').innerHTML =
-        '<img alt="投票二维码" style="width:180px;height:180px;background:#fff;padding:8px;border:1px solid var(--line);border-radius:8px" src="' + qrDataUrl + '">';
+      buildQrCard(r.poll.title, qrDataUrl, png => {
+        if (current.seq !== seq) return;   // 合成期间用户已离开，放弃
+        cardDataUrl = png;
+        const box = document.getElementById('qrImg');
+        if (!box) return;
+        const src = cardDataUrl || qrDataUrl;
+        box.innerHTML =
+          '<img alt="投票二维码卡片" style="width:210px;background:#fff;padding:6px;border:1px solid var(--line);border-radius:8px" src="' + src + '">';
+      });
     } else {
       const qb = document.getElementById('qrBox');
       if (qb) qb.style.display = 'none';
     }
   } catch (e) { console.warn('二维码生成失败：', e); }
   document.getElementById('saveQrBtn').onclick = () => {
-    if (!qrDataUrl) {
+    const img = cardDataUrl || qrDataUrl;
+    if (!img) {
       toast('二维码不可用，请长按输入框全选复制链接分享');
       const inp = document.getElementById('shareInput');
       if (inp && inp.select) inp.select();
       return;
     }
     if (/MicroMessenger/i.test(navigator.userAgent)) {
-      toast('微信内请长按上方二维码，选「保存图片」或「发送给朋友」');
+      toast('微信内请长按上方二维码卡片，选「保存图片」或「发送给朋友」');
       return;
     }
     const a = document.createElement('a');
-    a.href = qrDataUrl;
-    a.download = 'hongla-vote-qr.gif';
+    a.href = img;
+    a.download = 'hongla-vote-qr.png';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    toast('二维码已开始保存，可发朋友圈/群聊分享');
+    toast('二维码卡片已开始保存，可发朋友圈/群聊分享');
   };
   updateResult(true);
   });
