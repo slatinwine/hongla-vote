@@ -223,7 +223,7 @@
   <header>
     <div>
       <div class="logo"><span class="hong">夯</span>到<span class="la">拉</span>投票</div>
-      <div class="slogan">从夯到拉，一目了然 · <span id="verTag">v14</span></div>
+      <div class="slogan">从夯到拉，一目了然 · <span id="verTag">v15</span></div>
     </div>
     <a class="backlink" id="navHome" href="#/" style="display:none">← 返回首页</a>
   </header>
@@ -454,9 +454,16 @@ const PUBLIC_CONFIG = {
   oauthRelayBaseUrl: 'https://www.workbuddy.cn/v2/as/genie-baas/oauth',
   publishableKey: 'wbpk_ebVbTyavKioLDW0jzMQw63_VnLT20M5wZbycJ4aMSofwLo8po3aNY7u',
 };
-// 页面不在应用自身域名上时（GitHub Pages / 本地调试），云端请求走应用服务器的 /cp 代理
+// 页面不在应用自身域名上时（GitHub Pages / 本地调试），云端请求走应用服务器的 /cp 代理。
+// 代理请求必须带 sharecode 才能过平台边缘层门禁（否则 403「链接不完整」），由 cloudFetch 统一补上。
 const USE_CLOUD_PROXY = location.hostname !== 'hongla-vote.app.workbuddy.host';
 const cloudEndpoint = () => PUBLIC_CONFIG.endpoint + (USE_CLOUD_PROXY ? '/cp' : '');
+const cloudFetch = (url, opts) => {
+  if (typeof url === 'string' && url.indexOf('/cp/.cloud/') !== -1) {
+    url += (url.indexOf('?') >= 0 ? '&' : '?') + 'sharecode=5T3C5P4ZOX';
+  }
+  return fetch(url, opts);
+};
 const CloudStore = (() => {
   let db = null;
   const K_ADMIN = 'hongla_admin_keys';
@@ -470,6 +477,7 @@ const CloudStore = (() => {
         endpoint: cloudEndpoint(),
         oauthRelayBaseUrl: PUBLIC_CONFIG.oauthRelayBaseUrl,
         publishableKey: PUBLIC_CONFIG.publishableKey,
+        fetch: USE_CLOUD_PROXY ? cloudFetch : undefined,
       }).database;
     }
     return db;
@@ -589,6 +597,7 @@ async function pickBackend() {
       endpoint: cloudEndpoint(),
       oauthRelayBaseUrl: PUBLIC_CONFIG.oauthRelayBaseUrl,
       publishableKey: PUBLIC_CONFIG.publishableKey,
+      fetch: USE_CLOUD_PROXY ? cloudFetch : undefined,
     }).database;
     const { error } = await probe.from('polls').select('id').limit(1);
     if (error) throw error;
