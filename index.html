@@ -221,7 +221,7 @@
   <header>
     <div>
       <div class="logo"><span class="hong">夯</span>到<span class="la">拉</span>投票</div>
-      <div class="slogan">从夯到拉，一目了然 · <span id="verTag">v7</span></div>
+      <div class="slogan">从夯到拉，一目了然 · <span id="verTag">v8</span></div>
     </div>
     <a class="backlink" id="navHome" href="#/" style="display:none">← 返回首页</a>
   </header>
@@ -622,16 +622,19 @@ let current = { view: 'home', id: null };
 let draftRatings = {};   // 投票页暂存评级
 let draftCounts = {};    // 新建页选项行计数
 
+let routeSeq = 0;          // 路由序号：异步渲染回调醒来后核对，防止过期渲染覆盖/崩溃
 function route() {
+  routeSeq++;
+  const seq = routeSeq;
   const h = location.hash || '#/';
   const m = h.match(/^#\/(vote|result)\/(\w+)/);
   document.getElementById('navHome').style.display = m ? '' : 'none';
   if (m) {
-    current = { view: m[1], id: m[2] };
+    current = { view: m[1], id: m[2], seq: seq };
     draftRatings = {};
     (m[1] === 'vote') ? renderVote() : renderResult();
   } else {
-    current = { view: 'home', id: null };
+    current = { view: 'home', id: null, seq: seq };
     renderHome();
   }
 }
@@ -718,6 +721,7 @@ async function onCreate() {
 
 /* ---------- 投票页 ---------- */
 async function renderVote() {
+  const seq = current.seq;
   const poll = await Store.getPoll(current.id);
   if (!poll) { app.innerHTML = '<div class="card"><div class="empty">投票不存在或已被删除</div></div>'; return; }
   draftRatings = {};
@@ -729,6 +733,7 @@ async function renderVote() {
     mine = await Store.myVotes(poll.id, key.value);
     myCmts = await Store.myComments(poll.id, key.value);
   } catch (e) { console.warn('身份识别/回填失败，使用兜底标识：', e); }
+  if (current.seq !== seq) return;   // 等待期间用户已离开本页，放弃过期渲染
   Object.assign(draftRatings, mine);
   const badgeText = key.type === 'ip'
     ? '防重复投票：已识别 IP ' + esc(key.value) + '，同一 IP 每题限一份选票（重复提交视为修改）'
@@ -799,7 +804,9 @@ function spawnDanmaku(c, optName, init) {
   });
 }
 function renderResult() {
+  const seq = current.seq;
   Store.pollResults(current.id).then(r => {
+  if (current.seq !== seq) return;   // 等待期间用户已离开本页，放弃过期渲染
   if (!r) { app.innerHTML = '<div class="card"><div class="empty">投票不存在或已被删除</div></div>'; return; }
   dmSeen.clear();
   // 微信发送文本链接会截断 # 后的内容，官方域名上分享链接改用查询参数 ?p=<id>
@@ -836,11 +843,14 @@ function renderResult() {
   });
 }
 async function updateResult(init = false) {
+  const seq = current.seq;
   const r = await Store.pollResults(current.id);
-  if (!r) return;
+  if (!r || current.view !== 'result' || current.seq !== seq) return;
+  const sl = document.getElementById('statLine');
+  if (!sl) return;   // 骨架尚未渲染完（云端请求慢时轮询先到），安全跳过本轮
   const { rows, total, voters, comments, poll } = r;
   const optName = id => (poll.options.find(o => o.id === id) || {}).name || '';
-  document.getElementById('statLine').innerHTML =
+  sl.innerHTML =
     `<span class="live-dot"></span>实时结果 · 共 <b>${total}</b> 票 · <b>${voters}</b> 人参与（按 IP 去重） · <b>${comments.length}</b> 条锐评 · 2 秒自动刷新`;
   const maxCount = Math.max(1, ...rows.map(x => x.count));
   document.getElementById('resRows').innerHTML = rows.map((x, i) => `
