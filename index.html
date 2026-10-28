@@ -7,7 +7,12 @@
 <script>
   // GitHub Pages 镜像无法直连云端（网关按 Origin 白名单拦截），自动跳转到全区共享版；本地/其他域名不受影响
   if (location.hostname === "slatinwine.github.io") {
-    location.replace("https://hongla-vote.app.workbuddy.host/?sharecode=5T3C5P4ZOX" + location.hash);
+    var __q = location.search.replace(/^\?/, '').split('&'), __p = '';
+    for (var __i = 0; __i < __q.length; __i++) {
+      var __kv = __q[__i].split('=');
+      if (__kv[0] === 'p') __p = decodeURIComponent(__kv[1] || '');
+    }
+    location.replace("https://hongla-vote.app.workbuddy.host/?sharecode=5T3C5P4ZOX" + (__p ? '&p=' + encodeURIComponent(__p) : '') + location.hash);
   }
   // 页面级错误可视化（微信等环境没有控制台，报错直接显示出来）
   window.__errs = [];
@@ -216,7 +221,7 @@
   <header>
     <div>
       <div class="logo"><span class="hong">夯</span>到<span class="la">拉</span>投票</div>
-      <div class="slogan">从夯到拉，一目了然 · <span id="verTag">v6</span></div>
+      <div class="slogan">从夯到拉，一目了然 · <span id="verTag">v7</span></div>
     </div>
     <a class="backlink" id="navHome" href="#/" style="display:none">← 返回首页</a>
   </header>
@@ -797,7 +802,10 @@ function renderResult() {
   Store.pollResults(current.id).then(r => {
   if (!r) { app.innerHTML = '<div class="card"><div class="empty">投票不存在或已被删除</div></div>'; return; }
   dmSeen.clear();
-  const shareUrl = location.origin + location.pathname + '#/vote/' + r.poll.id;
+  // 微信发送文本链接会截断 # 后的内容，官方域名上分享链接改用查询参数 ?p=<id>
+  const shareUrl = /workbuddy\.host$/.test(location.hostname)
+    ? location.origin + location.pathname + '?sharecode=5T3C5P4ZOX&p=' + r.poll.id
+    : location.origin + location.pathname + '#/vote/' + r.poll.id;
   app.innerHTML = `
     <div class="card">
       <h2 style="font-size:20px">${esc(r.poll.title)}</h2>
@@ -807,7 +815,7 @@ function renderResult() {
     </div>
     <div class="card">
       <h2>分享投票</h2>
-      <div class="muted" style="margin-bottom:8px">把链接发给其他人，让他们也从夯到拉评一评、锐评一句：</div>
+      <div class="muted" style="margin-bottom:8px">把链接发给其他人，让他们也从夯到拉评一评、锐评一句（建议用「复制链接」后粘贴发送，手动输入容易打错）：</div>
       <div class="share-box">
         <input type="text" id="shareInput" readonly value="${esc(shareUrl)}">
         <button class="btn sm" id="copyBtn">复制链接</button>
@@ -862,7 +870,18 @@ async function updateResult(init = false) {
   Store.onChange(() => {
     if (current.view === 'result') updateResult();
   });
-  route();
+  // 支持 ?p=<投票id> 形式的分享链接（微信发送文本会在 # 处截断，故分享链接不用 hash）
+  var __routed = false;
+  var __qs = location.search.replace(/^\?/, '').split('&');
+  for (var __i = 0; __i < __qs.length; __i++) {
+    var __kv = __qs[__i].split('=');
+    if (__kv[0] === 'p' && __kv[1] && !location.hash) {
+      location.hash = '#/vote/' + decodeURIComponent(__kv[1]);
+      __routed = true;
+      break;
+    }
+  }
+  if (!__routed) route();
   Identity.resolve().catch(() => {});   // 页面打开即预热身份识别，进投票页时已就绪
 })();
 setInterval(() => { if (current.view === 'result') updateResult(); }, 2000);
