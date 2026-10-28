@@ -221,7 +221,7 @@
   <header>
     <div>
       <div class="logo"><span class="hong">夯</span>到<span class="la">拉</span>投票</div>
-      <div class="slogan">从夯到拉，一目了然 · <span id="verTag">v12</span></div>
+      <div class="slogan">从夯到拉，一目了然 · <span id="verTag">v13</span></div>
     </div>
     <a class="backlink" id="navHome" href="#/" style="display:none">← 返回首页</a>
   </header>
@@ -864,8 +864,12 @@ function renderResult() {
   const shareUrl = /workbuddy\.host$/.test(location.hostname)
     ? location.origin + location.pathname + '?sharecode=5T3C5P4ZOX&p=' + r.poll.id
     : location.origin + location.pathname + '#/vote/' + r.poll.id;
-  // 文本链接用 ?p=（微信聊天文本会截断 #）；二维码内容用 hash 深链（扫码不走文本检测，且只含一个参数无 &，浏览器重定向时 # 后内容自动保留）
-  const qrUrl = location.origin + location.pathname + '?sharecode=5T3C5P4ZOX#/vote/' + r.poll.id;
+  // 二维码内容不能指向 *.app.workbuddy.host：微信扫一扫识别二维码时会把多级子域名
+  // 错误解析成 hongla-vote.app（不存在的域名）导致"网页无法访问"。
+  // 改为 GitHub Pages 域名（微信扫码兼容性最好），打开后页面自动跳回云端版，?p= 全程透传。
+  const __isLocal = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+  const qrUrl = (__isLocal ? location.origin + location.pathname : 'https://slatinwine.github.io/hongla-vote/')
+    + '?p=' + r.poll.id;
   app.innerHTML = `
     <div class="card">
       <h2 style="font-size:20px">${esc(r.poll.title)}</h2>
