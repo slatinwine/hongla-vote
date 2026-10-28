@@ -5,8 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>夯拉投票 · 从夯到拉，一目了然</title>
 <script>
-  // GitHub Pages 镜像无法直连云端（网关按 Origin 白名单拦截），自动跳转到全区共享版；本地/其他域名不受影响
-  if (location.hostname === "slatinwine.github.io") {
+  // 托管说明：workbuddy.host 平台对微信 UA 会返回「请在浏览器中打开」合规页，
+  // 而云端网关按 Origin 白名单拦截跨域 API。因此微信内由 GitHub Pages 承载页面、
+  // 经应用服务器的 /cp 代理访问云端（见 server.js）；非微信环境仍跳转云端版（同源直连最快）。
+  if (location.hostname === "slatinwine.github.io" && !/MicroMessenger/i.test(navigator.userAgent)) {
     var __q = location.search.replace(/^\?/, '').split('&'), __p = '';
     for (var __i = 0; __i < __q.length; __i++) {
       var __kv = __q[__i].split('=');
@@ -221,7 +223,7 @@
   <header>
     <div>
       <div class="logo"><span class="hong">夯</span>到<span class="la">拉</span>投票</div>
-      <div class="slogan">从夯到拉，一目了然 · <span id="verTag">v13</span></div>
+      <div class="slogan">从夯到拉，一目了然 · <span id="verTag">v14</span></div>
     </div>
     <a class="backlink" id="navHome" href="#/" style="display:none">← 返回首页</a>
   </header>
@@ -452,6 +454,9 @@ const PUBLIC_CONFIG = {
   oauthRelayBaseUrl: 'https://www.workbuddy.cn/v2/as/genie-baas/oauth',
   publishableKey: 'wbpk_ebVbTyavKioLDW0jzMQw63_VnLT20M5wZbycJ4aMSofwLo8po3aNY7u',
 };
+// 页面不在应用自身域名上时（GitHub Pages / 本地调试），云端请求走应用服务器的 /cp 代理
+const USE_CLOUD_PROXY = location.hostname !== 'hongla-vote.app.workbuddy.host';
+const cloudEndpoint = () => PUBLIC_CONFIG.endpoint + (USE_CLOUD_PROXY ? '/cp' : '');
 const CloudStore = (() => {
   let db = null;
   const K_ADMIN = 'hongla_admin_keys';
@@ -462,7 +467,7 @@ const CloudStore = (() => {
   function init() {
     if (!db && window.WorkBuddyCloud) {
       db = WorkBuddyCloud.createWorkBuddyCloud({
-        endpoint: PUBLIC_CONFIG.endpoint,
+        endpoint: cloudEndpoint(),
         oauthRelayBaseUrl: PUBLIC_CONFIG.oauthRelayBaseUrl,
         publishableKey: PUBLIC_CONFIG.publishableKey,
       }).database;
@@ -581,7 +586,7 @@ async function pickBackend() {
   if (!window.WorkBuddyCloud) return;
   try {
     const probe = WorkBuddyCloud.createWorkBuddyCloud({
-      endpoint: PUBLIC_CONFIG.endpoint,
+      endpoint: cloudEndpoint(),
       oauthRelayBaseUrl: PUBLIC_CONFIG.oauthRelayBaseUrl,
       publishableKey: PUBLIC_CONFIG.publishableKey,
     }).database;
@@ -860,16 +865,13 @@ function renderResult() {
   if (current.seq !== seq) return;   // 等待期间用户已离开本页，放弃过期渲染
   if (!r) { app.innerHTML = '<div class="card"><div class="empty">投票不存在或已被删除</div></div>'; return; }
   dmSeen.clear();
-  // 微信发送文本链接会截断 # 后的内容，官方域名上分享链接改用查询参数 ?p=<id>
-  const shareUrl = /workbuddy\.host$/.test(location.hostname)
-    ? location.origin + location.pathname + '?sharecode=5T3C5P4ZOX&p=' + r.poll.id
-    : location.origin + location.pathname + '#/vote/' + r.poll.id;
-  // 二维码内容不能指向 *.app.workbuddy.host：微信扫一扫识别二维码时会把多级子域名
-  // 错误解析成 hongla-vote.app（不存在的域名）导致"网页无法访问"。
-  // 改为 GitHub Pages 域名（微信扫码兼容性最好），打开后页面自动跳回云端版，?p= 全程透传。
+  // 分享链接与二维码统一指向 GitHub Pages：微信内只能打开该域名（平台对
+  // workbuddy.host 的微信 UA 返回「请在浏览器中打开」合规页），页面内经 /cp 代理访问云端。
+  // 链接用 ?p=<id>：微信聊天文本会截断 #；扫码时微信对 github.io 域名解析正常。
   const __isLocal = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
-  const qrUrl = (__isLocal ? location.origin + location.pathname : 'https://slatinwine.github.io/hongla-vote/')
-    + '?p=' + r.poll.id;
+  const __shareBase = __isLocal ? location.origin + location.pathname : 'https://slatinwine.github.io/hongla-vote/';
+  const shareUrl = __shareBase + '?p=' + r.poll.id;
+  const qrUrl = __shareBase + '?p=' + r.poll.id;
   app.innerHTML = `
     <div class="card">
       <h2 style="font-size:20px">${esc(r.poll.title)}</h2>
